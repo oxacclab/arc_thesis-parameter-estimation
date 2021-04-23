@@ -1,5 +1,7 @@
 
 # Libraries ---------------------------------------------------------------
+renv::restore(prompt = F)
+
 library(tibble)
 library(dplyr)
 library(tidyr)
