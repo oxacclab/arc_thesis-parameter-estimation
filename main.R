@@ -177,7 +177,7 @@ scaledError <- function(err1, err2) {
 nShuffles <- 9
 nCores <- as.integer(Sys.getenv('NUMBER_OF_PROCESSORS'))
 cacheFile <- '/data/xpsy-acc/wolf5224/thesis-parameter-estimation.rda'
-cacheFile <- 'data/thesis-parameter-estimation.rda'
+# cacheFile <- 'data/thesis-parameter-estimation.rda'
 tryCatch(
   load(cacheFile),
   error = function(e) {

@@ -3,6 +3,9 @@
 # set the number of nodes
 #SBATCH --nodes=1
 
+# cores per node
+#SBATCH --ntasks-per-node=32
+
 # set max wallclock time
 #SBATCH --time=00:30:00
 
