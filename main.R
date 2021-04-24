@@ -186,14 +186,7 @@ nShuffles <- 9
 nCores <- parallel::detectCores()
 cacheFile <- '/data/xpsy-acc/wolf5224/thesis-parameter-estimation.rda'
 # cacheFile <- 'data/thesis-parameter-estimation.rda'
-tryCatch(
-  load(cacheFile),
-  error = function(e) {
-    recovered_parameters <- NULL
-    shuffles <- NULL
-    status <- NULL
-  }
-)
+tryCatch(load(cacheFile), error = function(e) {})
 
 # Script ------------------------------------------------------------------
 
@@ -210,11 +203,18 @@ d <- trials %>%
 print(paste0('Using ', nCores, ' cores.'))
 print(paste0('Found ', nrow(d), ' participants\'s data.'))
 
-print(paste0(nrow(status), ' ids complete.'))
-
-ids_left <- d$uid[!(d$uid %in% status$uid)]
-
-print(paste0(length(ids_left), ' ids left'))
+if ('recovered_parameters' %in% ls()) {
+  print(paste0(nrow(status), ' ids complete.'))
+  
+  ids_left <- d$uid[!(d$uid %in% status$uid)]
+  
+  print(paste0(length(ids_left), ' ids left'))
+} else {
+  ids_left <- d$uid
+  recovered_parameters <- NULL
+  shuffles <- NULL
+  status <- NULL
+}
 
 if (length(ids_left) > 0) {
   # Cycle through remaining ids and calculate the model fit and shuffle position
