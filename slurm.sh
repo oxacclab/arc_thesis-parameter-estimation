@@ -22,4 +22,4 @@ module purge
 module load git
 module load R/4.0.2-foss-2020a
 
-Rscript /home/xpsy-acc/wolf5224/arc_thesis-parameter-estimation/main.R
+Rscript /home/wolf5224/arc_thesis-parameter-estimation/main.R
