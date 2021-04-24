@@ -1,8 +1,10 @@
 libPath <- '/home/wolf5224/R_libs4'
 # Libraries ---------------------------------------------------------------
-install.packages(c(
+pkgs <- c(
   'tibble', 'dplyr', 'tidyr', 'lubridate', 'purrr', 'parallel', 'remotes'
-), repos = 'http://cran.irsn.fr', lib = libPath)
+)
+pkgs <- pkgs[!(pkgs %in% installed.packages()[,1])]
+install.packages(pkgs, repos = 'http://cran.irsn.fr', lib = libPath)
 remotes::install_github('oxacclab/adviseR', lib = libPath)
 remotes::install_github('oxacclab/esmData', lib = libPath)
 
@@ -12,6 +14,8 @@ library(tidyr)
 library(lubridate)
 library(purrr)
 library(parallel)
+library(esmData)
+library(adviseR)
 
 # Functions ---------------------------------------------------------------
 
@@ -73,7 +77,7 @@ gradientDescent <- function(
     okay <- F
     while (!okay) {
       coords_new <- coords + step_size
-      E_new <- adviseR::simulateFromData(
+      E_new <- simulateFromData(
         x, tibble(w = coords_new[1], LR = coords_new[2])
       )
       E_diff <- E - E_new
@@ -94,7 +98,7 @@ gradientDescent <- function(
         )
       } 
       # Calculate new error
-      E_new <- adviseR::simulateFromData(
+      E_new <- simulateFromData(
         x, tibble(w = coords_new[1], LR = coords_new[2])
       )
       
@@ -194,7 +198,7 @@ tryCatch(
 # Script ------------------------------------------------------------------
 
 # Load up some dots task data. Like all of it.
-esmData::select_experiment('dotstask')
+select_experiment('dotstask')
 trials <- trials %>% 
   mutate(uid = factor(paste0(studyId, studyVersion, ' p', pid)))
 
