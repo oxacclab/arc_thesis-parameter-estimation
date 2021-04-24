@@ -119,7 +119,7 @@ gradientDescent <- function(
   }
   
   if (stall_count < max_steps)
-    warning(glue('GradientDescent failed to converge after { max_steps } steps'))
+    warning(paste0('GradientDescent failed to converge after ', max_steps, ' steps'))
   out
 }
 
@@ -183,7 +183,7 @@ scaledError <- function(err1, err2) {
 # Variables ---------------------------------------------------------------
 
 nShuffles <- 9
-nCores <- as.integer(Sys.getenv('NUMBER_OF_PROCESSORS'))
+nCores <- parallel::detectCores()
 cacheFile <- '/data/xpsy-acc/wolf5224/thesis-parameter-estimation.rda'
 # cacheFile <- 'data/thesis-parameter-estimation.rda'
 tryCatch(
@@ -207,6 +207,7 @@ d <- trials %>%
   mutate(okay = map_lgl(data, ~ any(.$hasChoice, na.rm = T))) %>%
   filter(okay)
 
+print(paste0('Using ', nCores, ' cores.'))
 print(paste0('Found ', nrow(d), ' participants\'s data.'))
 
 print(paste0(nrow(status), ' ids complete.'))
@@ -222,7 +223,7 @@ if (length(ids_left) > 0) {
     t1 <- Sys.time()
     id <- ids_left[1]
     
-    print(paste0('Processing id ', id))
+    # print(paste0('Processing id ', id))
     
     tryCatch({
       # Format how the C++ code wants the data:
@@ -270,7 +271,7 @@ if (length(ids_left) > 0) {
       
       gd <- f(x)
       
-      print(head(gd))
+      # print(head(gd))
       
       recovered_parameters <- bind_rows(recovered_parameters, gd)
       
