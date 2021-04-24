@@ -207,18 +207,13 @@ d <- trials %>%
   mutate(okay = map_lgl(data, ~ any(.$hasChoice, na.rm = T))) %>%
   filter(okay)
 
-print(paste0(
-  'Found ', nrow(d), ' participants\'s data.\n',
-  'class(status): ', class(status), '\n'
-))
+print(paste0('Found ', nrow(d), ' participants\'s data.'))
 
-print('ids complete:')
-status$uid
+print(paste0(nrow(status), ' ids complete.'))
 
 ids_left <- d$uid[!(d$uid %in% status$uid)]
 
-print('ids left:')
-ids_left
+print(paste0(length(ids_left), ' ids left'))
 
 if (length(ids_left) > 0) {
   # Cycle through remaining ids and calculate the model fit and shuffle position
@@ -226,6 +221,8 @@ if (length(ids_left) > 0) {
   while (length(ids_left) > 0) {
     t1 <- Sys.time()
     id <- ids_left[1]
+    
+    print(paste0('Processing id ', id))
     
     tryCatch({
       # Format how the C++ code wants the data:
@@ -273,6 +270,8 @@ if (length(ids_left) > 0) {
       
       gd <- f(x)
       
+      print(head(gd))
+      
       recovered_parameters <- bind_rows(recovered_parameters, gd)
       
       shuffle_list <- crossing(
@@ -309,6 +308,7 @@ if (length(ids_left) > 0) {
       )
     },
     error = function(e) {
+      print(e$message)
       status <- bind_rows(
         status,
         tibble(
@@ -330,6 +330,8 @@ if (length(ids_left) > 0) {
       status,
       file = cacheFile
     )
+    
+    print('saved.')
     
     ids_left <- sample(ids_left[ids_left != id])
   }
