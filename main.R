@@ -3,8 +3,8 @@ libPath <- '/home/wolf5224/R_libs'
 install.packages(c(
   'tibble', 'dplyr', 'tidyr', 'lubridate', 'purrr', 'parallel', 'remotes'
 ), repos = 'http://cran.irsn.fr', lib = libPath)
-remotes::install_github('oxacclab/adviseR')
-remotes::install_github('oxacclab/esmData')
+remotes::install_github('oxacclab/adviseR', lib = libPath)
+remotes::install_github('oxacclab/esmData', lib = libPath)
 
 library(tibble)
 library(dplyr)
