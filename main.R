@@ -77,7 +77,7 @@ gradientDescent <- function(
     okay <- F
     while (!okay) {
       coords_new <- coords + step_size
-      E_new <- simulateFromData(
+      E_new <- adviseR::simulateFromData(
         x, tibble(w = coords_new[1], LR = coords_new[2])
       )
       E_diff <- E - E_new
@@ -98,7 +98,7 @@ gradientDescent <- function(
         )
       } 
       # Calculate new error
-      E_new <- simulateFromData(
+      E_new <- adviseR::simulateFromData(
         x, tibble(w = coords_new[1], LR = coords_new[2])
       )
       
