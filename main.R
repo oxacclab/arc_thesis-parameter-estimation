@@ -17,6 +17,8 @@ library(parallel)
 library(esmData)
 library(adviseR)
 
+print(installed.packages()[,1])
+
 # Functions ---------------------------------------------------------------
 
 #' Perform a gradient descent search on a participant's data
