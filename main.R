@@ -17,8 +17,6 @@ library(parallel)
 library(esmData)
 library(adviseR)
 
-print(installed.packages()[,1])
-
 # Functions ---------------------------------------------------------------
 
 #' Perform a gradient descent search on a participant's data
@@ -209,7 +207,18 @@ d <- trials %>%
   mutate(okay = map_lgl(data, ~ any(.$hasChoice, na.rm = T))) %>%
   filter(okay)
 
+print(paste0(
+  'Found ', nrow(d), ' participants\'s data.\n',
+  'class(status): ', class(status), '\n'
+))
+
+print('ids complete:')
+status$uid
+
 ids_left <- d$uid[!(d$uid %in% status$uid)]
+
+print('ids left:')
+ids_left
 
 if (length(ids_left) > 0) {
   # Cycle through remaining ids and calculate the model fit and shuffle position
@@ -311,6 +320,8 @@ if (length(ids_left) > 0) {
         )
       )
     })
+    
+    print(status[nrow(status),])
     
     # Write to the cache 
     save(
