@@ -22,4 +22,6 @@ module purge
 module load git
 module load R/4.0.2-foss-2020a
 
+export R_LIBS=$HOME/R_Libs
+
 Rscript /home/wolf5224/arc_thesis-parameter-estimation/main.R
