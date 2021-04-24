@@ -1,4 +1,4 @@
-install.packages('renv')
+install.packages('renv', repos = 'http://cran.irsn.fr')
 # Libraries ---------------------------------------------------------------
 renv::restore(prompt = F)
 
