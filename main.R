@@ -36,8 +36,8 @@ gradientDescent <- function(
   start_coords = NULL, 
   starting_limits = tibble::tibble(min = c(-5, -.5), max = c(30, .5)), 
   max_steps = 200,
-  step_size = 2,
-  min_step_size = .005,
+  step_size = c(5, 1),
+  min_step_size = c(.25, .005),
   stall_count = max_steps
 ) {
   out <- NULL
@@ -84,8 +84,8 @@ gradientDescent <- function(
       # Step in each direction according to the amount of error reduction
       if (is.infinite(sum(E_diff))) {
         coords_new <- c(
-          coords[1] + step_size / 2 * sign(E_diff[1]),
-          coords[2] + step_size / 2 * sign(E_diff[2])
+          coords[1] + step_size[1] / 2 * sign(E_diff[1]),
+          coords[2] + step_size[2] / 2 * sign(E_diff[2])
         )
       } else {
         # If we're in a minimum we don't need to move
@@ -93,8 +93,8 @@ gradientDescent <- function(
           return(out)
         }
         coords_new <- c(
-          coords[1] + sign(E_diff[1]) * step_size * abs(E_diff[1]) / sum(abs(E_diff)),
-          coords[2] + sign(E_diff[2]) * step_size * abs(E_diff[2]) / sum(abs(E_diff))
+          coords[1] + sign(E_diff[1]) * step_size[1] * abs(E_diff[1]) / sum(abs(E_diff)),
+          coords[2] + sign(E_diff[2]) * step_size[2] * abs(E_diff[2]) / sum(abs(E_diff))
         )
       } 
       # Calculate new error
@@ -104,10 +104,10 @@ gradientDescent <- function(
       
       # Check we got better with the movement
       if (E[1] < E_new[1] & E[2] < E_new[2]) {
-        if (step_size < min_step_size) {
+        if (all(step_size < min_step_size)) {
           return(out)
         }
-        step_size <- step_size / 2
+        step_size <- pmax(step_size / 2, min_step_size)
       } else {
         okay <- T
       }
@@ -184,7 +184,7 @@ scaledError <- function(err1, err2) {
 
 nShuffles <- 9
 nCores <- parallel::detectCores()
-cacheFile <- '/data/xpsy-acc/wolf5224/thesis-parameter-estimation.rda'
+cacheFile <- '/data/xpsy-acc/wolf5224/thesis-parameter-estimation-uncoupled.rda'
 # cacheFile <- 'data/thesis-parameter-estimation.rda'
 tryCatch(load(cacheFile), error = function(e) {})
 
