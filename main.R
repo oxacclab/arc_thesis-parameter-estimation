@@ -89,7 +89,7 @@ gradientDescent <- function(
         )
       } else {
         # If we're in a minimum we don't need to move
-        if (E_diff[1] == 0 & E_diff[2] == 0) {
+        if (all(E_diff == 0)) {
           return(out)
         }
         coords_new <- c(
@@ -103,8 +103,20 @@ gradientDescent <- function(
       )
       
       # Check we got better with the movement
-      if (E[1] < E_new[1] & E[2] < E_new[2]) {
-        if (all(step_size < min_step_size)) {
+      if (all(E_new < E)) {
+        okay <- T
+      } else {
+        if (all(step_size <= min_step_size)) {
+          return(out)
+        }
+        step_size[E_new >= E] <- pmax(
+          step_size[E_new >= E] / 2,
+          min_step_size[E_new >= E]
+        )
+      }
+      
+      if (all(E <= E_new)) {
+        if (all(step_size <= min_step_size)) {
           return(out)
         }
         step_size <- pmax(step_size / 2, min_step_size)
@@ -185,7 +197,7 @@ scaledError <- function(err1, err2) {
 nShuffles <- 9
 nCores <- parallel::detectCores()
 cacheFile <- '/data/xpsy-acc/wolf5224/thesis-parameter-estimation-uncoupled.rda'
-# cacheFile <- 'data/thesis-parameter-estimation.rda'
+# cacheFile <- 'data/thesis-parameter-estimation-uncoupled.rda'
 tryCatch(load(cacheFile), error = function(e) {})
 
 # Script ------------------------------------------------------------------
