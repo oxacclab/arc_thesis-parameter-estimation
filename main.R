@@ -135,6 +135,37 @@ gradientDescent <- function(
   out
 }
 
+#' Perform gradient descent with some coordinates fixed
+gdFixed <- function(
+  x, 
+  start_coords = NULL, 
+  starting_limits = tibble::tibble(min = c(-5, -.5), max = c(30, .5)), 
+  max_steps = 200,
+  step_size = c(5, 1),
+  min_step_size = c(.25, .005),
+  stall_count = max_steps, 
+  fixed = c(NA, NA)
+) {
+  f <- function(x) ifelse(is.na(fixed), x, fixed)
+  if (!is.null(start_coords))
+    start_coords = f(start_coords)
+  starting_limits = tibble::tibble(
+    min = f(starting_limits$min), 
+    max = f(starting_limits$max)
+  )
+  step_size = ifelse(is.na(fixed), step_size, 0)
+  min_step_size = ifelse(is.na(fixed), min_step_size, 0)
+  gradientDescent(
+    x = x, 
+    start_coords = start_coords,
+    starting_limits = starting_limits,
+    max_steps = max_steps,
+    step_size = step_size,
+    min_step_size = min_step_size,
+    stall_count = stall_count
+  )
+}
+
 #' Parellelised implementation of gradientDescent over nRuns runs
 #' @param x dataframe to perform descent on 
 #' @param nRuns number of initial start positions to try
@@ -157,12 +188,12 @@ doGradientDescent <- function(
     group_split() 
   
   cl <- makeCluster(nCores)
-  clusterExport(cl, c('gradientDescent', 'gradientDescentSummary'))
+  clusterExport(cl, c('gradientDescent', 'gdFixed', 'gradientDescentSummary'))
   on.exit(stopCluster(cl), add = T)
   f <- function(d, ...) {
     library(tidyr); library(dplyr); library(purrr)
     d %>%
-      mutate(gd = map(data, function(z) gradientDescent(z, ...) %>% gradientDescentSummary())) %>%
+      mutate(gd = map(data, function(z) gdFixed(z, ...) %>% gradientDescentSummary())) %>%
       unnest(cols = gd)
   }
   
@@ -194,10 +225,26 @@ scaledError <- function(err1, err2) {
 
 # Variables ---------------------------------------------------------------
 
-nShuffles <- 9
-nCores <- parallel::detectCores()
-cacheFile <- '/data/xpsy-acc/wolf5224/thesis-parameter-estimation-uncoupled.rda'
-# cacheFile <- 'data/thesis-parameter-estimation-uncoupled.rda'
+if (F) {
+  # local
+  nShuffles <- 0
+  nCores <- parallel::detectCores() - 4
+  cacheFile <- 'data/thesis-parameter-estimation-uncoupled'
+} else {
+  # ARC
+  nShuffles <- 9
+  nCores <- parallel::detectCores()
+  cacheFile <- '/data/xpsy-acc/wolf5224/thesis-parameter-estimation-uncoupled'
+}
+
+if (F) {
+  fixed <- c(NA, .0112) # use a fixed value for trustUpdate
+  cacheFile <- paste0(cacheFile, '-fixedTU.rda')
+} else {
+  fixed <- c(NA, NA)
+  cacheFile <- paste0(cacheFile, '.rda')
+}
+
 tryCatch(load(cacheFile), error = function(e) {})
 
 # Script ------------------------------------------------------------------
@@ -275,40 +322,48 @@ if (length(ids_left) > 0) {
         )
       
       f <- function(x, ...) {
-        doGradientDescent(x, nCores = nCores, ...) %>% 
+        gd <- doGradientDescent(x, nCores = nCores, ...) 
+        if (!is.na(fixed[1])) {
+          filter(gd, tu_error == min(tu_error))
+        } else if (!is.na(fixed[2])) {
+          filter(gd, ws_error == min(ws_error))
+        } else 
+          gd %>% 
           filter(
             scaledError(ws_error, tu_error) == min(scaledError(ws_error, tu_error))
           )
       }
       
-      gd <- f(x)
+      gd <- f(x, fixed = fixed)
       
       # print(head(gd))
       
       recovered_parameters <- bind_rows(recovered_parameters, gd)
       
-      shuffle_list <- crossing(
-        gd %>%
-          select(uid, data, weightedSelection = ws_end, trustUpdateRate = tu_end), 
-        shuffle_run = 1:nShuffles
-      ) %>%
-        mutate(data = map(data, function(x) {
-          x$advisorAgrees <- sample(x$advisorAgrees)
-          x
-        }))
-      # Run gradient descent on shuffles
-      ### WARNING: this takes much longer than the original run because there are 
-      ### multiple shuffles!
-      dList <- list()
-      for (i in 1:nrow(shuffle_list))
-        dList[[i]] <- shuffle_list[i, ]
-      
-      shuffle_list <- lapply(dList, f)
-      shuffles <- bind_rows(
-        shuffles,
-        bind_rows(shuffle_list)
-      )
-      
+      if (nShuffles > 0) {
+        shuffle_list <- crossing(
+          gd %>%
+            select(uid, data, weightedSelection = ws_end, trustUpdateRate = tu_end),
+          shuffle_run = 1:nShuffles
+        ) %>%
+          mutate(data = map(data, function(x) {
+            x$advisorAgrees <- sample(x$advisorAgrees)
+            x
+          }))
+        # Run gradient descent on shuffles
+        ### WARNING: this takes much longer than the original run because there are
+        ### multiple shuffles!
+        dList <- list()
+        for (i in 1:nrow(shuffle_list))
+          dList[[i]] <- shuffle_list[i, ]
+        
+        shuffle_list <- lapply(dList, f)
+        shuffles <- bind_rows(
+          shuffles,
+          bind_rows(shuffle_list)
+        )
+      }
+
       status <- bind_rows(
         status,
         tibble(
