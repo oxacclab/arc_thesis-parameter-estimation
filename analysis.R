@@ -54,8 +54,8 @@ R_diff <- R %>%
   select(uid, method, ends_with('_error'), ends_with('_end')) %>%
   pivot_longer(c(-uid, -method)) %>%
   pivot_wider(names_from = method) %>%
-  mutate(diff_uncoupled = old - new, diff_fixedTU = old - fixedTU) %>%
-  select(c(-old, -new, -fixedTU))
+  mutate(diff_uncoupled = old - uncoupled, diff_fixedTU = old - fixedTU) %>%
+  select(c(-old, -uncoupled, -fixedTU))
 
 R_diff %>%
   pivot_longer(
@@ -76,12 +76,19 @@ for (v in c('ws_end', 'tu_end', 'ws_error', 'tu_error')) {
     R %>%
       select(method, !!v) %>%
       pivot_longer(-method) %>%
+      # filter(abs(value) < 50) %>%
       ggplot(aes(x = value)) +
       geom_histogram(bins = 100) +
       facet_grid(method~name, scales = 'free_x', as.table = F)
   )
 }
 
+R %>% 
+  select(method, ws_end, ws_error) %>%
+  ggplot(aes(ws_end, ws_error)) + 
+  geom_point(alpha = .25) +
+  geom_smooth(method = 'lm', formula = 'y ~ x') +
+  facet_grid(~method, scales = 'free')
 
 R %>%
   group_by(method) %>%
