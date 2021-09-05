@@ -4,6 +4,8 @@
 #'   loaded at the beginning so that progress can be picked up from where it
 #'   left off.
 #' @param nShuffles Number of times to shuffle and refit for each participant
+#' @param includeSplits Whether to include a dataframe of split estimates for
+#'   participants who saw multiple pairs of advisors
 #' @param fixedParameters Length 2 vector of NA/number for whether
 #'   weighted_selection and trust_update_rate should be fixed
 #' @param customFilter function to apply to the data (can filter by UID,
@@ -26,6 +28,7 @@
 parameterRecovery <- function(
   savePath,
   nShuffles = 9,
+  includeSplits = TRUE,
   fixedParameters = c(NA, NA),
   customFilter = \(x) x,
   nCores = parallel::detectCores(),
@@ -49,6 +52,7 @@ parameterRecovery <- function(
   library(tidyr)
   library(lubridate)
   library(purrr)
+  library(stringr)
   library(parallel)
   library(esmData)
   library(adviseR)
@@ -111,6 +115,7 @@ parameterRecovery <- function(
       
       # Find new coordinates
       okay <- F
+      
       while (!okay) {
         coords_new <- coords + step_size
         E_new <- adviseR::simulateFromData(
@@ -223,9 +228,6 @@ parameterRecovery <- function(
       group_by(core) %>%
       group_split() 
     
-    cl <- makeCluster(nCores)
-    clusterExport(cl, c('gradientDescent', 'gdFixed', 'gradientDescentSummary'))
-    on.exit(stopCluster(cl), add = T)
     f <- function(d, ...) {
       library(tidyr); library(dplyr); library(purrr)
       d %>%
@@ -233,7 +235,19 @@ parameterRecovery <- function(
         unnest(cols = gd)
     }
     
-    gd <- parLapply(cl = cl, X = gd, fun = f, ...)
+    if (nCores > 1) {
+      cl <- makeCluster(nCores)
+      clusterExport(
+        cl, 
+        c('gradientDescent', 'gdFixed', 'gradientDescentSummary'),
+        parent.env(environment())
+      )
+      on.exit(stopCluster(cl), add = T)
+      
+      gd <- parLapply(cl = cl, X = gd, fun = f, ...)
+    } else {
+      gd <- lapply(gd, f, ...)
+    }
     bind_rows(gd)
   }
   
@@ -291,6 +305,7 @@ parameterRecovery <- function(
     recovered_parameters <- NULL
     shuffles <- NULL
     status <- NULL
+    splits <- NULL
   }
   
   if (length(ids_left) > 0) {
@@ -299,6 +314,7 @@ parameterRecovery <- function(
     while (length(ids_left) > 0) {
       t1 <- Sys.time()
       id <- ids_left[1]
+      ids_left <- sample(ids_left[ids_left != id])
       
       if (verbosity > 1) print(paste0('Processing id ', id))
       
@@ -334,16 +350,31 @@ parameterRecovery <- function(
                 across(
                   .cols = matches('choice[01]'), 
                   ~ as.numeric(factor(., levels = levels(factor(advisorId))))
+                ),
+                okay = case_when(
+                  is.na(choice0) ~ T,
+                  is.na(choice1) ~ T,
+                  advisorIndex %in% c(choice0, choice1) ~ T,
+                  T ~ F
                 )
               )
-            )
+            ),
+            choices_okay = map_lgl(data, ~ all(.$okay))
           )
+        
+        if (!x$choices_okay) {
+          stop("AdvisorIndices and choices are mismatched.")
+        }
+        
+        x <- x %>% 
+          mutate(data = map(data, ~ select(., -okay))) %>% 
+          select(-choices_okay)
         
         f <- function(x, ...) {
           gd <- doGradientDescent(x, nCores = nCores, ...) 
-          if (!is.na(fixed[1])) {
+          if (!is.na(fixedParameters[1])) {
             filter(gd, tu_error == min(tu_error))
-          } else if (!is.na(fixed[2])) {
+          } else if (!is.na(fixedParameters[2])) {
             filter(gd, ws_error == min(ws_error))
           } else 
             gd %>% 
@@ -352,7 +383,7 @@ parameterRecovery <- function(
             )
         }
         
-        gd <- f(x, fixed = fixed)
+        gd <- f(x, fixed = fixedParameters)
         
         recovered_parameters <- bind_rows(recovered_parameters, gd)
         
@@ -378,6 +409,55 @@ parameterRecovery <- function(
             shuffles,
             bind_rows(shuffle_list)
           )
+        }
+        
+        # Splits
+        if (includeSplits) {
+          choices <- x$data[[1]] %>%
+            group_by(choice0, choice1) %>%
+            summarise(.groups = "drop") %>%
+            mutate(
+              choice = paste0(
+                pmin(choice0, choice1), "_", pmax(choice0, choice1)
+              )
+            ) %>% 
+            drop_na() %>%
+            select(choice) %>%
+            unique() %>%
+            rowid_to_column("choiceNum") %>%
+            mutate(
+              c1 = str_extract(choice, "^[0-9]"),
+              c2 = str_extract(choice, "[0-9]$")
+            ) %>%
+            pivot_longer(c(c1, c2)) %>%
+            select(choiceNum, advisorIndex = value) %>%
+            mutate(across(everything(), as.numeric))
+          
+          y <- x %>%
+            mutate(
+              data = map(
+                data, 
+                ~ left_join(. , choices, by = "advisorIndex")
+              )
+            ) %>%
+            unnest(cols = data) %>%
+            mutate(uid = paste0(uid, "_", choiceNum)) %>% 
+            filter(!is.na(choiceNum)) %>%
+            nest(data = -c(uid, okay))
+          
+          if (nrow(y) > 1) {
+            for (i in unique(y$uid)) {
+              splits <- bind_rows(
+                splits, 
+                f(
+                  y %>% 
+                    filter(uid == i) %>% 
+                    mutate(data = map(data, ~ select(., -choiceNum))), 
+                  fixed = fixedParameters
+                )
+              )
+            }
+          }
         }
         
         status <- bind_rows(
@@ -412,12 +492,11 @@ parameterRecovery <- function(
         recovered_parameters, 
         shuffles,
         status,
+        splits,
         file = savePath
       )
       
       if (verbosity > 1) print('saved.')
-      
-      ids_left <- sample(ids_left[ids_left != id])
     }
   }
 }
