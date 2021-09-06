@@ -322,13 +322,20 @@ parameterRecovery <- function(
       # Lookup id
       if (nchar(remote_URL) > 0) {
         req <- curlGetHeaders(paste0(remote_URL, "data/", id), verify = F)
-        if (attr(req, "status") == 200)  # already exists
+        if (attr(req, "status") == 200) {  # already exists
+          if (verbosity > 1) print(paste0('Skipping id ', id, ' (done remotely)'))
           next()
+        }
         else  # record that we're working on it
-          curlGetHeaders(paste0(remote_URL, "?f=", id), verify = F)
-      }
-      
-      if (verbosity > 1) print(paste0('Processing id ', id))
+          req <- curlGetHeaders(paste0(remote_URL, "?f=", id), verify = F)
+          if (attr(req, "status") == 200) {
+            if (verbosity > 1) print(paste0('Reserved id ', id))
+          } else {
+            warning(paste0("Failed to reserve id ", id, " at ", remote_URL, "?f=", id))
+            if (verbosity > 1) print(req)
+          }
+      } else
+        if (verbosity > 1) print(paste0('Processing id ', id))
       
       tryCatch({
         # Format how the C++ code wants the data:
