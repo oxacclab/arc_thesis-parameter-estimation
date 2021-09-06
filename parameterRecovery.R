@@ -321,16 +321,27 @@ parameterRecovery <- function(
       
       # Lookup id
       if (nchar(remote_URL) > 0) {
-        req <- curlGetHeaders(paste0(remote_URL, "data/", id), verify = F)
+        req <- curlGetHeaders(
+          paste0(remote_URL, "data/", URLencode(as.character(id))), 
+          verify = F
+        )
         if (attr(req, "status") == 200) {  # already exists
           if (verbosity > 1) print(paste0('Skipping id ', id, ' (done remotely)'))
           next()
         } else { # record that we're working on it
-          req <- curlGetHeaders(paste0(remote_URL, "?f=", id), verify = F)
+          req <- curlGetHeaders(
+            paste0(remote_URL, "?f=", URLencode(as.character(id))), 
+            verify = F
+          )
           if (attr(req, "status") == 200) {
             if (verbosity > 1) print(paste0('Reserved id ', id))
           } else {
-            warning(paste0("Failed to reserve id ", id, " at ", remote_URL, "?f=", id))
+            grr <- paste0(
+              "Failed to reserve id ", id, " at ", 
+              remote_URL, "?f=", URLencode(as.character(id))
+            )
+            warning(grr)
+            if (verbosity > 0) print(grr)
             if (verbosity > 1) print(req)
           }
         }
