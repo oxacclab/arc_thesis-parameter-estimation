@@ -35,7 +35,7 @@ parameterRecovery <- function(
   customFilter = function(x) x,
   nCores = parallel::detectCores(),
   installPackages = FALSE,
-  remote_URL = "https://acclab.psy.ox.ac.uk/~mj221/ARC/"
+  remote_URL = "https://acclab.psy.ox.ac.uk/~mj221/ARC/",
   verbosity = 2
 ) {
   if (installPackages) {
