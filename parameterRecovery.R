@@ -13,6 +13,8 @@
 #' @param nCores Number of cores to use for parallel processing
 #' @param installPackages Whether or not to install packages (useful for
 #'   cluster/virtual environments)
+#' @param remote_url URL to query with a participant UID to allow coordinatino
+#'   of work across multiple computers
 #' @param verbosity Number indicating how much output to print (higher = more
 #'   verbose)
 #'
@@ -33,6 +35,7 @@ parameterRecovery <- function(
   customFilter = \(x) x,
   nCores = parallel::detectCores(),
   installPackages = FALSE,
+  remote_URL = "https://acclab.psy.ox.ac.uk/~mj221/ARC/"
   verbosity = 2
 ) {
   if (installPackages) {
@@ -315,6 +318,15 @@ parameterRecovery <- function(
       t1 <- Sys.time()
       id <- ids_left[1]
       ids_left <- sample(ids_left[ids_left != id])
+      
+      # Lookup id
+      if (nchar(remote_URL) > 0) {
+        req <- curlGetHeaders(paste0(remote_URL, "data/", id), verify = F)
+        if (attr(req, "status") == 200)  # already exists
+          next()
+        else  # record that we're working on it
+          curlGetHeaders(paste0(remote_URL, "?f=", id), verify = F)
+      }
       
       if (verbosity > 1) print(paste0('Processing id ', id))
       
