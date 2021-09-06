@@ -325,8 +325,7 @@ parameterRecovery <- function(
         if (attr(req, "status") == 200) {  # already exists
           if (verbosity > 1) print(paste0('Skipping id ', id, ' (done remotely)'))
           next()
-        }
-        else  # record that we're working on it
+        } else { # record that we're working on it
           req <- curlGetHeaders(paste0(remote_URL, "?f=", id), verify = F)
           if (attr(req, "status") == 200) {
             if (verbosity > 1) print(paste0('Reserved id ', id))
@@ -334,6 +333,7 @@ parameterRecovery <- function(
             warning(paste0("Failed to reserve id ", id, " at ", remote_URL, "?f=", id))
             if (verbosity > 1) print(req)
           }
+        }
       } else
         if (verbosity > 1) print(paste0('Processing id ', id))
       
