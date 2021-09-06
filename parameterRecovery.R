@@ -32,7 +32,7 @@ parameterRecovery <- function(
   nShuffles = 9,
   includeSplits = TRUE,
   fixedParameters = c(NA, NA),
-  customFilter = \(x) x,
+  customFilter = function(x) x,
   nCores = parallel::detectCores(),
   installPackages = FALSE,
   remote_URL = "https://acclab.psy.ox.ac.uk/~mj221/ARC/"
