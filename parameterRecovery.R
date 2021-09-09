@@ -276,8 +276,8 @@ parameterRecovery <- function(
     log(x + y)
   }
   
-  # Pick up where we left off
-  tryCatch(load(savePath), error = function(e) {})
+  if (!dir.exists(savePath)) 
+    dir.create(savePath)
   
   # Script ------------------------------------------------------------------
   
@@ -297,24 +297,17 @@ parameterRecovery <- function(
     print(paste0('Found ', nrow(d), ' participants\'s data.'))
   }
   
-  if ('recovered_parameters' %in% ls()) {
-    if (verbosity) print(paste0(nrow(status), ' ids complete.'))
-    
-    ids_left <- d$uid[!(d$uid %in% status$uid)]
-    
-    if (verbosity) print(paste0(length(ids_left), ' ids left'))
-  } else {
-    ids_left <- d$uid
-    recovered_parameters <- NULL
-    shuffles <- NULL
-    status <- NULL
-    splits <- NULL
-  }
+  ids_left <- d$uid
   
   if (length(ids_left) > 0) {
     # Cycle through remaining ids and calculate the model fit and shuffle position
     
     while (length(ids_left) > 0) {
+      recovered_parameters <- NULL
+      shuffles <- NULL
+      status <- NULL
+      splits <- NULL
+      
       t1 <- Sys.time()
       id <- ids_left[1]
       ids_left <- sample(ids_left[ids_left != id])
@@ -334,7 +327,8 @@ parameterRecovery <- function(
             verify = F
           )
           if (attr(req, "status") == 200) {
-            if (verbosity > 1) print(paste0('Reserved id ', id))
+            if (verbosity) print(paste0('Reserved id ', id))
+            if (verbosity) print(paste0(length(ids_left), ' ids left'))
           } else {
             grr <- paste0(
               "Failed to reserve id ", id, " at ", 
@@ -523,7 +517,7 @@ parameterRecovery <- function(
         shuffles,
         status,
         splits,
-        file = savePath
+        file = paste0(savePath, "/", id, ".Rdata")
       )
       
       if (verbosity > 1) print('saved.')
